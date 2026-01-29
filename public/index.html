@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Keeper</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- Dashboard View (Clients List) -->
+        <div id="dashboardView">
+            <header>
+                <div class="header-content">
+                    <h1>Contact Keeper</h1>
+                    <div class="view-switcher">
+                        <button id="viewClientsBtn" class="switcher-btn active">Clientes</button>
+                        <button id="viewSuppliersBtn" class="switcher-btn">Proveedores</button>
+                    </div>
+                    <button id="addClientBtn" class="btn-primary">
+                        <i class="fa-solid fa-plus"></i> Añadir Cliente
+                    </button>
+                    <button id="addSupplierBtn" class="btn-primary hidden">
+                        <i class="fa-solid fa-plus"></i> Añadir Proveedor
+                    </button>
+                </div>
+                <div class="search-bar">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="clientSearchInput" placeholder="Buscar clientes...">
+                    <input type="text" id="supplierSearchInput" class="hidden" placeholder="Buscar proveedores...">
+                </div>
+            </header>
+
+            <main>
+                <div class="grid-container" id="clientsGrid">
+                    <!-- Client Cards injected here -->
+                </div>
+                <div class="grid-container hidden" id="suppliersGrid">
+                    <!-- Supplier Cards injected here -->
+                </div>
+                <div id="clientsEmptyState" class="empty-state hidden">
+                    <i class="fa-regular fa-building"></i>
+                    <p>No hay clientes registrados</p>
+                </div>
+                <div id="suppliersEmptyState" class="empty-state hidden">
+                    <i class="fa-solid fa-truck-field"></i>
+                    <p>No hay proveedores registrados</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- Client Detail View (Contacts List) -->
+        <div id="clientDetailView" class="hidden">
+            <header>
+                <div class="header-content">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <button id="backToDashboardBtn" class="btn-icon back-btn">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h1 id="clientDetailTitle">Nombre Cliente</h1>
+                    </div>
+                    <div id="clientActionButtons" style="display: flex; gap: 1rem;">
+                        <button id="addPortalBtn" class="btn-secondary">
+                            <i class="fa-solid fa-cloud"></i> Portal
+                        </button>
+                        <button id="addContactBtn" class="btn-primary">
+                            <i class="fa-solid fa-plus"></i> Añadir Contacto
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+                <div class="contacts-list" id="contactsList">
+                    <!-- Contact Cards injected here -->
+                </div>
+                <div id="contactsEmptyState" class="empty-state hidden">
+                    <i class="fa-regular fa-address-card"></i>
+                    <p>No hay contactos para este cliente</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Client Modal -->
+    <div id="clientModal" class="modal">
+        <div class="modal-content glass-panel small-modal">
+            <div class="modal-header">
+                <h2>Nuevo Cliente</h2>
+                <button class="close-btn close-client-modal">&times;</button>
+            </div>
+            <form id="clientForm">
+                <div class="form-group">
+                    <label>Nombre del Cliente (Empresa)</label>
+                    <input type="text" id="clientName" name="name" required placeholder="Ej: Calidad Pascual" autofocus>
+                </div>
+
+                <div id="newClientContactsContainer">
+                    <!-- Dynamic Contact Forms will appear here -->
+                </div>
+
+                <div style="margin-bottom: 2rem;">
+                    <button type="button" id="addContactToClientBtn" class="btn-secondary"
+                        style="width: 100%; justify-content: center; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-plus"></i> Añadir Contacto
+                    </button>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary close-client-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contact Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2 id="contactModalTitle">Nuevo Contacto</h2>
+                <button class="close-btn close-contact-modal">&times;</button>
+            </div>
+            <form id="contactForm">
+                <input type="hidden" id="contactId">
+                <input type="hidden" id="contactClientId"> <!-- To link to client -->
+
+                <div class="form-group">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="contactName" name="name" placeholder="Ej: Juan Pérez">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="text" id="email" name="email" placeholder="contacto@empresa.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="phone" name="phone" placeholder="+34 600 000 000">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Departamento</label>
+                    <input type="text" id="department" name="department" placeholder="Ej: Compras, IT...">
+                </div>
+
+
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="observations" rows="3" placeholder="Notas adicionales..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary close-contact-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Portal Modal -->
+    <div id="portalModal" class="modal">
+        <div class="modal-content glass-panel small-modal">
+            <div class="modal-header">
+                <h2>Configuración del Portal</h2>
+                <button class="close-btn close-portal-modal">&times;</button>
+            </div>
+            <form id="portalForm">
+                <input type="hidden" id="portalClientId">
+
+                <div class="form-group">
+                    <label>¿Tiene Portal?</label>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="clientHasPortal">
+                            <span class="slider round"></span>
+                        </label>
+                        <span id="clientPortalText">No</span>
+                    </div>
+                </div>
+
+                <div id="clientPortalFields" class="portal-fields hidden">
+                    <div class="form-group">
+                        <label>URL Portal</label>
+                        <input type="url" id="clientPortalUrl" name="portalUrl"
+                            placeholder="https://proveedores.ejemplo.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Usuario</label>
+                            <input type="text" id="clientPortalUser" name="portalUser" placeholder="Usuario">
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña</label>
+                            <input type="text" id="clientPortalPass" name="portalPass" placeholder="Contraseña">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary close-portal-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Credentials Modal -->
+    <div id="credentialsModal" class="modal">
+        <div class="modal-content glass-panel small-modal credentials-modal-content">
+            <div class="modal-header">
+                <h2>Acceso Portal</h2>
+                <button class="close-btn close-credentials-modal">&times;</button>
+            </div>
+            <div class="credentials-body">
+                <div class="credential-item">
+                    <label>Usuario</label>
+                    <div class="credential-value-container">
+                        <span id="displayUser" class="credential-value">admin</span>
+                        <button class="copy-btn" onclick="copyToClipboard('displayUser')" title="Copiar usuario">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="credential-item">
+                    <label>Contraseña</label>
+                    <div class="credential-value-container">
+                        <span id="displayPass" class="credential-value">password123</span>
+                        <button class="copy-btn" onclick="copyToClipboard('displayPass')" title="Copiar contraseña">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-primary close-credentials-modal" style="width: 100%;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content glass-panel small-modal delete-modal-content">
+            <div class="modal-header">
+                <h2>Eliminar Contacto</h2>
+                <button class="close-btn close-delete-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; margin-bottom: 2rem;">
+                <i class="fa-solid fa-triangle-exclamation"
+                    style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; color: var(--text-light);">¿Estás seguro de que quieres eliminar este
+                    contacto?</p>
+                <p style="color: var(--text-dim); margin-top: 0.5rem;">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 1.5rem;">
+                <button type="button" class="btn-secondary close-delete-modal">Cancelar</button>
+                <button type="button" id="confirmDeleteBtn" class="btn-primary"
+                    style="background: #ef4444; color: white;">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supplier Modal -->
+    <div id="supplierModal" class="modal">
+        <div class="modal-content glass-panel small-modal">
+            <div class="modal-header">
+                <h2 id="supplierModalTitle">Nuevo Proveedor</h2>
+                <button class="close-btn close-supplier-modal">&times;</button>
+            </div>
+            <form id="supplierForm">
+                <input type="hidden" id="supplierId">
+                <div class="form-group">
+                    <label>Nombre del Proveedor</label>
+                    <input type="text" id="supplierName" name="name" required placeholder="Ej: Amazon, Microsoft">
+                </div>
+                <div class="form-group">
+                    <label>URL Portal</label>
+                    <input type="url" id="supplierPortalUrl" name="portalUrl"
+                        placeholder="https://portal.proveedor.com">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="supplierPortalUser" name="portalUser" placeholder="Usuario">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="text" id="supplierPortalPass" name="portalPass" placeholder="Contraseña">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="supplierObservations" name="observations" rows="3"
+                        placeholder="Notas sobre el proveedor..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary close-supplier-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Delete Confirmation Modal -->
+    <div id="supplierDeleteConfirmModal" class="modal">
+        <div class="modal-content glass-panel small-modal delete-modal-content">
+            <div class="modal-header">
+                <h2>Eliminar Proveedor</h2>
+                <button class="close-btn close-supplier-delete-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; margin-bottom: 2rem;">
+                <i class="fa-solid fa-triangle-exclamation"
+                    style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; color: var(--text-light);">¿Estás seguro de que quieres eliminar este
+                    proveedor?</p>
+                <p style="color: var(--text-dim); margin-top: 0.5rem;">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 1.5rem;">
+                <button type="button" class="btn-secondary close-supplier-delete-modal">Cancelar</button>
+                <button type="button" id="confirmSupplierDeleteBtn" class="btn-primary"
+                    style="background: #ef4444; color: white;">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered: ', registration))
+                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
+            });
+        }
+    </script>
+    <!-- Observations Modal -->
+    <div id="observationsModal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Observaciones</h2>
+                <button class="close-btn close-observations-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="observationText" style="line-height: 1.6; color: var(--text-light); white-space: pre-wrap;"></p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-primary close-observations-modal" style="width: 100%;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
