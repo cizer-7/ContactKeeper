@@ -5,8 +5,9 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 0",
-    "build": "npx prisma generate",
     "start": "node server.js",
+    "server": "nodemon server.js",
+    "build": "npx prisma generate",
     "dev": "nodemon server.js"
   },
   "keywords": [],
