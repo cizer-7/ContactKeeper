@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:../contactos.db"
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
 }
 
 model Client {
