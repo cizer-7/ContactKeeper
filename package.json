@@ -8,7 +8,8 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "build": "npx prisma generate",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "azure": "npx prisma migrate deploy && node server.js"
   },
   "keywords": [],
   "author": "",

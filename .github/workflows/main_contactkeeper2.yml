@@ -55,6 +55,13 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_F91F3DBABBA84CE59EAA0768705A11B1 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_16F9CFD002DD48558F66DBACDCFCD68A }}
 
+      - name: Configure Azure Web App startup command
+        run: |
+          az webapp config set \
+            --name "contactkeeper2" \
+            --resource-group "ContactKeeper-RG" \
+            --startup-file "npm run azure"
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
