@@ -1,3 +1,4 @@
+// Force redeploy v2.0 - Edit/Delete buttons included
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
 
