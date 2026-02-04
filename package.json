@@ -9,8 +9,7 @@
     "server": "nodemon server.js",
     "build": "npx prisma generate",
     "dev": "nodemon server.js",
-    "azure": "node azure-start.js",
-    "postinstall": "npx prisma generate"
+    "azure": "node azure-start.js"
   },
   "keywords": [],
   "author": "",

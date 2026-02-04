@@ -64,40 +64,71 @@ try {
         console.warn('Engines directory not found:', enginesDir);
     }
 
-    // 3. Generate Client to /tmp
-    console.log('Preparing to generate Prisma Client at runtime...');
+    // 3. Generate Client in a Fake Project (to bypass read-only and auto-install issues)
+    console.log('Preparing to generate Prisma Client at runtime (Symlink Method)...');
+
+    const buildDir = path.join(tmpDir, 'prisma-build');
+    if (!fs.existsSync(buildDir)) {
+        fs.mkdirSync(buildDir, { recursive: true });
+    }
+
+    // 3a. Setup Fake Project Root
+    // Copy package.json so Prisma sees a valid project
+    fs.copyFileSync(path.join(__dirname, 'package.json'), path.join(buildDir, 'package.json'));
+
+    // Symlink node_modules so Prisma finds dependencies without installing
+    const symlinkNodeModules = path.join(buildDir, 'node_modules');
+    if (!fs.existsSync(symlinkNodeModules)) {
+        try {
+            fs.symlinkSync(path.join(__dirname, 'node_modules'), symlinkNodeModules);
+            console.log('Symlinked node_modules to build dir.');
+        } catch (symErr) {
+            console.warn('Failed to symlink node_modules:', symErr);
+        }
+    }
+
+    // 3b. Prepare Schema with Custom Output
+    const prismaDir = path.join(buildDir, 'prisma');
+    if (!fs.existsSync(prismaDir)) {
+        fs.mkdirSync(prismaDir);
+    }
 
     const schemaPath = path.join(__dirname, 'prisma', 'schema.prisma');
-    const tmpSchemaPath = path.join(tmpDir, 'schema.prisma');
+    const tmpSchemaPath = path.join(prismaDir, 'schema.prisma');
+
+    // Output relative to the schema in the build dir
+    // buildDir/prisma/schema.prisma -> output: ../generated-client -> buildDir/generated-client
+    const relativeOutputDir = '../generated-client';
+    const absoluteOutputDir = path.join(buildDir, 'generated-client');
 
     let schemaContent = fs.readFileSync(schemaPath, 'utf8');
-    // Inject output path into generator
     if (schemaContent.includes('generator client {')) {
         schemaContent = schemaContent.replace(
             'generator client {',
-            `generator client {\n  output = "${clientOutputDir}"`
+            `generator client {\n  output = "${relativeOutputDir}"`
         );
-    } else {
-        console.error('Could not find generator client block in schema');
     }
 
     fs.writeFileSync(tmpSchemaPath, schemaContent);
-    console.log('Created temporary schema with custom output at:', tmpSchemaPath);
+    console.log('Created temporary schema at:', tmpSchemaPath);
 
-    // Run generate using the temp schema
+    // 3c. Run Generate
     console.log('Running prisma generate...');
     try {
-        execSync(`node node_modules/prisma/build/index.js generate --schema="${tmpSchemaPath}"`, {
+        // Run inside the buildDir so it finds package.json and node_modules there
+        execSync(`node node_modules/prisma/build/index.js generate --schema="prisma/schema.prisma"`, {
+            cwd: buildDir,
             stdio: 'inherit',
-            env: process.env
+            env: { ...process.env, NODE_ENV: 'production' }
         });
-        console.log('Prisma Client generated successfully at', clientOutputDir);
+
+        console.log('Prisma Client generated successfully at', absoluteOutputDir);
 
         // Point app to use this client
-        process.env.PRISMA_CLIENT_PATH = clientOutputDir;
+        process.env.PRISMA_CLIENT_PATH = absoluteOutputDir;
 
     } catch (genErr) {
-        console.error('Failed to generate client:', genErr);
+        console.error('Failed to generate client (Symlink Method):', genErr);
     }
 
 } catch (e) {
