@@ -9,7 +9,7 @@
     "server": "nodemon server.js",
     "build": "npx prisma generate",
     "dev": "nodemon server.js",
-    "azure": "chmod -R +x node_modules/@prisma/engines && node node_modules/prisma/build/index.js migrate deploy && node server.js"
+    "azure": "node azure-start.js"
   },
   "keywords": [],
   "author": "",
