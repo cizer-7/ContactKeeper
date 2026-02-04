@@ -732,8 +732,6 @@ input:checked+.slider:before {
     display: flex;
     gap: 0.75rem;
     margin-left: auto;
-    margin-right: 3rem;
-    /* Space for delete button */
 }
 
 .btn-portal {

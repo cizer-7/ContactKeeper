@@ -66,6 +66,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmSupplierDeleteBtn = document.getElementById('confirmSupplierDeleteBtn');
     let supplierToDeleteId = null;
 
+    // Client Delete Confirm Modal
+    const clientDeleteConfirmModal = document.getElementById('clientDeleteConfirmModal');
+    const closeClientDeleteModalBtns = document.querySelectorAll('.close-client-delete-modal');
+    const confirmClientDeleteBtn = document.getElementById('confirmClientDeleteBtn');
+    let clientToDeleteId = null;
+
+    // Edit Client Modal
+    const editClientModal = document.getElementById('editClientModal');
+    const closeEditClientModalBtns = document.querySelectorAll('.close-edit-client-modal');
+    const editClientForm = document.getElementById('editClientForm');
+
     // Delete Confirm Modal
     const deleteConfirmModal = document.getElementById('deleteConfirmModal');
     const closeDeleteModalBtns = document.querySelectorAll('.close-delete-modal');
@@ -142,27 +153,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 openClientDetails(client.id);
             };
 
-            let portalButtons = '';
+            let buttonsHtml = '';
+
+            // Portal Buttons
             if (client.hasPortal && client.portalUrl) {
                 const user = client.portalUser || 'N/A';
                 const pass = client.portalPass || 'N/A';
 
-                portalButtons = `
-                    <div class="portal-actions">
-                        <a href="${client.portalUrl}" target="_blank" class="btn-portal link" title="Link portal">
-                            <i class="fa-solid fa-link"></i>
-                        </a>
-                        <button class="btn-portal creds" onclick="showCredentials('${user}', '${pass}')" title="Credenciales">
-                            <i class="fa-solid fa-key"></i>
-                        </button>
-                    </div>
+                buttonsHtml += `
+                    <a href="${client.portalUrl}" target="_blank" class="btn-portal link" title="Link portal">
+                        <i class="fa-solid fa-link"></i>
+                    </a>
+                    <button class="btn-portal creds" onclick="showCredentials('${user}', '${pass}')" title="Credenciales">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
                 `;
             }
+
+            // Edit/Delete Buttons (Always present)
+            buttonsHtml += `
+                <button class="btn-portal creds" onclick="openEditClientModal(${client.id}, '${client.name}')" title="Editar Nombre">
+                    <i class="fa-solid fa-pencil"></i>
+                </button>
+                <button class="btn-portal creds" onclick="deleteClient(${client.id})" title="Eliminar Cliente" style="border-color: #ef4444; color: #ef4444;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            `;
 
             card.innerHTML = `
                  <div class="client-info">
                      <h3>${client.name}</h3>
-                     ${portalButtons}
+                     <div class="portal-actions">
+                        ${buttonsHtml}
+                     </div>
                  </div>
              `;
             clientsGrid.appendChild(card);
@@ -683,14 +706,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Global Actions (Delete) ---
-    window.deleteClient = async (id) => {
-        if (!confirm('¿Seguro que quieres borrar este cliente y todos sus contactos?')) return;
+    // --- Global Actions (Delete) ---
+    // Edit Client Name
+    window.openEditClientModal = (id, currentName) => {
+        document.getElementById('editClientId').value = id;
+        document.getElementById('editClientName').value = currentName;
+        editClientModal.classList.add('active');
+    };
+
+    function closeEditClientModalFunc() {
+        editClientModal.classList.remove('active');
+    }
+
+    editClientForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('editClientId').value;
+        const name = document.getElementById('editClientName').value;
+
         try {
-            const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
-            if (res.ok) fetchClients();
-            else alert('Error al borrar cliente');
+            // first fetch current client data to preserve other fields
+            const currentRes = await fetch(`/api/clients/${id}`);
+            const currentData = await currentRes.json();
+
+            const res = await fetch(`/api/clients/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...currentData, name }) // Maintain other fields, update name
+            });
+
+            if (res.ok) {
+                closeEditClientModalFunc();
+                fetchClients(); // Refresh list
+            } else {
+                alert('Error al actualizar nombre del cliente');
+            }
         } catch (error) {
             console.error(error);
+        }
+    });
+
+
+    window.deleteClient = (id) => {
+        clientToDeleteId = id;
+        clientDeleteConfirmModal.classList.add('active');
+    };
+
+    confirmClientDeleteBtn.onclick = async () => {
+        if (!clientToDeleteId) return;
+        try {
+            const res = await fetch(`/api/clients/${clientToDeleteId}`, { method: 'DELETE' });
+            if (res.ok) {
+                clientDeleteConfirmModal.classList.remove('active');
+                fetchClients();
+            } else {
+                alert('Error al borrar cliente');
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            clientToDeleteId = null;
         }
     };
 
@@ -756,6 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     closeSupplierDeleteModalBtns.forEach(btn => btn.addEventListener('click', () => supplierDeleteConfirmModal.classList.remove('active')));
     supplierDeleteConfirmModal.addEventListener('click', (e) => { if (e.target === supplierDeleteConfirmModal) supplierDeleteConfirmModal.classList.remove('active'); });
+
+    // Client Delete & Edit Modal Listeners
+    closeClientDeleteModalBtns.forEach(btn => btn.addEventListener('click', () => clientDeleteConfirmModal.classList.remove('active')));
+    clientDeleteConfirmModal.addEventListener('click', (e) => { if (e.target === clientDeleteConfirmModal) clientDeleteConfirmModal.classList.remove('active'); });
+
+    closeEditClientModalBtns.forEach(btn => btn.addEventListener('click', closeEditClientModalFunc));
+    editClientModal.addEventListener('click', (e) => { if (e.target === editClientModal) closeEditClientModalFunc(); });
 
     confirmSupplierDeleteBtn.onclick = async () => {
         if (!supplierToDeleteId) return;

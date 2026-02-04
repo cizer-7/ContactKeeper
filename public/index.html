@@ -343,6 +343,51 @@
         </div>
     </div>
 
+    <!-- Edit Client Name Modal -->
+    <div id="editClientModal" class="modal">
+        <div class="modal-content glass-panel small-modal">
+            <div class="modal-header">
+                <h2>Editar Nombre del Cliente</h2>
+                <button class="close-btn close-edit-client-modal">&times;</button>
+            </div>
+            <form id="editClientForm">
+                <input type="hidden" id="editClientId">
+                <div class="form-group">
+                    <label>Nombre del Cliente</label>
+                    <input type="text" id="editClientName" name="name" required placeholder="Ej: Calidad Pascual"
+                        autofocus>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary close-edit-client-modal">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client Delete Confirmation Modal -->
+    <div id="clientDeleteConfirmModal" class="modal">
+        <div class="modal-content glass-panel small-modal delete-modal-content">
+            <div class="modal-header">
+                <h2>Eliminar Cliente</h2>
+                <button class="close-btn close-client-delete-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; margin-bottom: 2rem;">
+                <i class="fa-solid fa-triangle-exclamation"
+                    style="font-size: 3rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; color: var(--text-light);">¿Estás seguro de que quieres eliminar este
+                    cliente y todo su contenido?</p>
+                <p style="color: var(--text-dim); margin-top: 0.5rem;">Esta acción eliminará todos los contactos
+                    asociados y no se puede deshacer.</p>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 1.5rem;">
+                <button type="button" class="btn-secondary close-client-delete-modal">Cancelar</button>
+                <button type="button" id="confirmClientDeleteBtn" class="btn-primary"
+                    style="background: #ef4444; color: white;">Eliminar Completamente</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
