@@ -49,17 +49,37 @@ try {
     // Continue anyway, maybe it works or we see a new error
 }
 
-try {
-    console.log('Running functionality: migrate deploy...');
-    // Execute migration with the modified environment
-    execSync('node node_modules/prisma/build/index.js migrate deploy', {
-        stdio: 'inherit',
-        env: process.env
-    });
-    console.log('Migration successful.');
-} catch (e) {
-    console.error('Migration failed. Exiting.');
-    process.exit(1);
+const MAX_RETRIES = 5;
+const RETRY_DELAY_SEC = 15;
+
+let migrationSuccess = false;
+
+for (let i = 1; i <= MAX_RETRIES; i++) {
+    try {
+        console.log(`Attempt ${i}/${MAX_RETRIES}: Running migrate deploy...`);
+        execSync('node node_modules/prisma/build/index.js migrate deploy', {
+            stdio: 'inherit',
+            env: process.env
+        });
+        console.log('Migration successful.');
+        migrationSuccess = true;
+        break;
+    } catch (e) {
+        console.error(`Migration attempt ${i} failed.`);
+        if (i < MAX_RETRIES) {
+            console.log(`Waiting ${RETRY_DELAY_SEC} seconds before retrying...`);
+            try {
+                execSync(`sleep ${RETRY_DELAY_SEC}`);
+            } catch (sleepErr) {
+                // Fallback if sleep command fails, busy wait
+                const start = Date.now();
+                while (Date.now() - start < RETRY_DELAY_SEC * 1000) { }
+            }
+        } else {
+            console.error('All migration attempts failed. Exiting.');
+            process.exit(1);
+        }
+    }
 }
 
 console.log('Starting application server...');
