@@ -1,6 +1,13 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const path = require('path');
+
+let PrismaClient;
+if (process.env.PRISMA_CLIENT_PATH) {
+  console.log('Loading Prisma Client from custom path:', process.env.PRISMA_CLIENT_PATH);
+  PrismaClient = require(process.env.PRISMA_CLIENT_PATH).PrismaClient;
+} else {
+  PrismaClient = require('@prisma/client').PrismaClient;
+}
 
 const prisma = new PrismaClient();
 const app = express();
