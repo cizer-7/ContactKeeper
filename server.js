@@ -13,6 +13,29 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Retry helper for Azure SQL Serverless cold starts
+async function withRetry(operation, maxRetries = 5, baseDelay = 2000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const isRetryable =
+        error.message?.includes('not currently available') || // Cold start (40613)
+        error.code === 'P2024' || // Connection pool timeout
+        error.message?.includes('Connection pool timeout') ||
+        error.message?.includes('Timed out');
+
+      if (!isRetryable || attempt === maxRetries) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      console.log(`Database retry attempt ${attempt}/${maxRetries}, waiting ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -25,12 +48,12 @@ app.use(express.static('public'));
 // GET /api/clients - List all clients
 app.get('/api/clients', async (req, res) => {
   try {
-    const clients = await prisma.client.findMany({
+    const clients = await withRetry(() => prisma.client.findMany({
       orderBy: { name: 'asc' },
       include: {
         _count: { select: { contacts: true } }
       }
-    });
+    }));
     res.json(clients);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch clients' });
@@ -63,10 +86,10 @@ app.post('/api/clients', async (req, res) => {
       };
     }
 
-    const newClient = await prisma.client.create({
+    const newClient = await withRetry(() => prisma.client.create({
       data: data,
       include: { contacts: true } // Return created contacts too
-    });
+    }));
     res.json(newClient);
   } catch (error) {
     console.error(error);
@@ -78,10 +101,10 @@ app.post('/api/clients', async (req, res) => {
 app.get('/api/clients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const client = await prisma.client.findUnique({
+    const client = await withRetry(() => prisma.client.findUnique({
       where: { id: parseInt(id) },
       include: { contacts: { orderBy: { createdAt: 'desc' } } }
-    });
+    }));
     if (!client) return res.status(404).json({ error: 'Client not found' });
     res.json(client);
   } catch (error) {
@@ -95,7 +118,7 @@ app.put('/api/clients/:id', async (req, res) => {
     const { id } = req.params;
     const { name, hasPortal, portalUrl, portalUser, portalPass } = req.body;
 
-    const updatedClient = await prisma.client.update({
+    const updatedClient = await withRetry(() => prisma.client.update({
       where: { id: parseInt(id) },
       data: {
         name,
@@ -104,7 +127,7 @@ app.put('/api/clients/:id', async (req, res) => {
         portalUser,
         portalPass
       }
-    });
+    }));
     res.json(updatedClient);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update client' });
@@ -115,9 +138,9 @@ app.put('/api/clients/:id', async (req, res) => {
 app.delete('/api/clients/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.client.delete({
+    await withRetry(() => prisma.client.delete({
       where: { id: parseInt(id) }
-    });
+    }));
     res.json({ message: 'Client deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete client' });
@@ -132,7 +155,7 @@ app.post('/api/clients/:id/contacts', async (req, res) => {
     const { id } = req.params;
     const { name, email, department, phone, observations } = req.body;
 
-    const newContact = await prisma.contact.create({
+    const newContact = await withRetry(() => prisma.contact.create({
       data: {
         clientId: parseInt(id),
         name,
@@ -141,7 +164,7 @@ app.post('/api/clients/:id/contacts', async (req, res) => {
         phone,
         observations
       }
-    });
+    }));
     res.json(newContact);
   } catch (error) {
     console.error(error);
@@ -155,7 +178,7 @@ app.put('/api/contacts/:id', async (req, res) => {
     const { id } = req.params;
     const { name, email, department, phone, observations } = req.body;
 
-    const updatedContact = await prisma.contact.update({
+    const updatedContact = await withRetry(() => prisma.contact.update({
       where: { id: parseInt(id) },
       data: {
         name,
@@ -164,7 +187,7 @@ app.put('/api/contacts/:id', async (req, res) => {
         phone,
         observations
       }
-    });
+    }));
     res.json(updatedContact);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update contact' });
@@ -175,9 +198,9 @@ app.put('/api/contacts/:id', async (req, res) => {
 app.delete('/api/contacts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.contact.delete({
+    await withRetry(() => prisma.contact.delete({
       where: { id: parseInt(id) }
-    });
+    }));
     res.json({ message: 'Contact deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete contact' });
@@ -189,9 +212,9 @@ app.delete('/api/contacts/:id', async (req, res) => {
 // GET /api/suppliers - List all suppliers
 app.get('/api/suppliers', async (req, res) => {
   try {
-    const suppliers = await prisma.supplier.findMany({
+    const suppliers = await withRetry(() => prisma.supplier.findMany({
       orderBy: { name: 'asc' }
-    });
+    }));
     res.json(suppliers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch suppliers' });
@@ -204,9 +227,9 @@ app.post('/api/suppliers', async (req, res) => {
     const { name, portalUrl, portalUser, portalPass, observations } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
-    const newSupplier = await prisma.supplier.create({
+    const newSupplier = await withRetry(() => prisma.supplier.create({
       data: { name, portalUrl, portalUser, portalPass, observations }
-    });
+    }));
     res.json(newSupplier);
   } catch (error) {
     console.error(error);
@@ -218,9 +241,9 @@ app.post('/api/suppliers', async (req, res) => {
 app.get('/api/suppliers/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const supplier = await prisma.supplier.findUnique({
+    const supplier = await withRetry(() => prisma.supplier.findUnique({
       where: { id: parseInt(id) }
-    });
+    }));
     if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
     res.json(supplier);
   } catch (error) {
@@ -234,10 +257,10 @@ app.put('/api/suppliers/:id', async (req, res) => {
     const { id } = req.params;
     const { name, portalUrl, portalUser, portalPass, observations } = req.body;
 
-    const updatedSupplier = await prisma.supplier.update({
+    const updatedSupplier = await withRetry(() => prisma.supplier.update({
       where: { id: parseInt(id) },
       data: { name, portalUrl, portalUser, portalPass, observations }
-    });
+    }));
     res.json(updatedSupplier);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update supplier' });
@@ -248,9 +271,9 @@ app.put('/api/suppliers/:id', async (req, res) => {
 app.delete('/api/suppliers/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.supplier.delete({
+    await withRetry(() => prisma.supplier.delete({
       where: { id: parseInt(id) }
-    });
+    }));
     res.json({ message: 'Supplier deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete supplier' });
