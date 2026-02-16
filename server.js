@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Retry helper for Azure SQL Serverless cold starts
-async function withRetry(operation, maxRetries = 5, baseDelay = 2000) {
+async function withRetry(operation, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
@@ -280,9 +280,33 @@ app.delete('/api/suppliers/:id', async (req, res) => {
   }
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok' });
+  } catch (e) {
+    res.status(503).json({ status: 'db_unavailable', error: e.message });
+  }
 });
 
-// Force restart for portal changes
+// Start Server with DB warmup
+async function startServer() {
+  console.log('Warming up database connection...');
+  for (let i = 1; i <= 3; i++) {
+    try {
+      await prisma.$connect();
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('Database connection established successfully.');
+      break;
+    } catch (e) {
+      console.log(`DB warmup attempt ${i}/3 failed: ${e.message}`);
+      if (i < 3) await new Promise(r => setTimeout(r, 3000));
+      else console.log('DB warmup failed, will retry on first request.');
+    }
+  }
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+}
+startServer();

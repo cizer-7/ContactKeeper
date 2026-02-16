@@ -137,7 +137,7 @@ try {
 
 // 4. Migrate Deploy with Retry
 const MAX_RETRIES = 5;
-const RETRY_DELAY_SEC = 15;
+const RETRY_DELAY_SEC = 5;
 
 for (let i = 1; i <= MAX_RETRIES; i++) {
     try {
