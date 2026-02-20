@@ -41,7 +41,6 @@ model Supplier {
   portalUrl    String?
   portalUser   String?
   portalPass   String?
-  phone        String?
   observations String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
