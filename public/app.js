@@ -248,19 +248,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 openSupplierModal('edit', supplier.id);
             };
 
-            let portalButtons = `
-                <div class="portal-actions">
-                    <button class="btn-portal creds" onclick="deleteSupplier(${supplier.id})" title="Eliminar" style="border-color: #ef4444; color: #ef4444;">
-                        <i class="fa-solid fa-trash-can"></i>
+            let observationBtn = '';
+            if (supplier.observations) {
+                // Use fa-phone as requested by the user for observations
+                observationBtn = `
+                    <button class="btn-portal link" onclick="openObservationsModal(\`${supplier.observations.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)" title="Observaciones (Teléfono)">
+                        <i class="fa-solid fa-phone"></i>
                     </button>
-                </div>
-            `;
+                `;
+            }
+
+            let portalButtons = `<div class="portal-actions">
+                ${observationBtn}
+                <button class="btn-portal creds" onclick="deleteSupplier(${supplier.id})" title="Eliminar" style="border-color: #ef4444; color: #ef4444;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>`;
 
             if (supplier.portalUrl) {
                 const user = supplier.portalUser || 'N/A';
                 const pass = supplier.portalPass || 'N/A';
                 portalButtons = `
                     <div class="portal-actions">
+                        ${observationBtn}
                         <a href="${supplier.portalUrl}" target="_blank" class="btn-portal link" title="Link portal">
                             <i class="fa-solid fa-link"></i>
                         </a>
@@ -435,10 +445,10 @@ document.addEventListener('DOMContentLoaded', () => {
         contactsList.appendChild(tableContainer);
     }
 
-    function openObservationsModal(text) {
+    window.openObservationsModal = (text) => {
         observationText.textContent = text;
         observationsModal.classList.add('active');
-    }
+    };
 
     function closeObservationsModalFunc() {
         observationsModal.classList.remove('active');
