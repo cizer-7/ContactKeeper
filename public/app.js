@@ -92,45 +92,80 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let clients = [];
     let suppliers = [];
+    let allClients = []; // full unfiltered cache
+    let allSuppliers = []; // full unfiltered cache
     let currentView = 'clients'; // 'clients' or 'suppliers'
     let currentClient = null; // Stores the currently selected client object (with nested contacts)
 
+    // --- Loading helpers ---
+    function showGridLoading(grid) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; display:flex; flex-direction:column; align-items:center; padding: 3rem; color: var(--text-muted, #aaa);">
+                <div class="spinner" style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.15);border-top-color:#7c6df0;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1rem;"></div>
+                <p style="margin:0;font-size:0.95rem;">Cargando datos...</p>
+            </div>`;
+    }
+
     // --- Functions ---
 
-    // 1. Clients Logic
+    // 1. Single parallel init load — replaces separate fetchClients/fetchSuppliers on startup
+    async function initData() {
+        showGridLoading(clientsGrid);
+        try {
+            const res = await fetch('/api/init');
+            const data = await res.json();
+            allClients = data.clients || [];
+            allSuppliers = data.suppliers || [];
+            clients = allClients;
+            suppliers = allSuppliers;
+            renderClientsGrid();
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            clientsGrid.innerHTML = '<p style="color:#ef4444;padding:2rem;">Error al cargar datos. Intenta recargar la página.</p>';
+        }
+    }
+
+    // Refresh only clients from server (used after create/update/delete)
     async function fetchClients(search = '') {
         try {
             const res = await fetch('/api/clients');
-            const allClients = await res.json();
-
-            // Client-side filtering for search
-            if (search) {
-                const lowerSearch = search.toLowerCase();
-                clients = allClients.filter(c => c.name.toLowerCase().includes(lowerSearch));
-            } else {
-                clients = allClients;
-            }
-
+            allClients = await res.json();
+            clients = search
+                ? allClients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+                : allClients;
             renderClientsGrid();
         } catch (error) {
             console.error('Error fetching clients:', error);
         }
     }
 
+    // Refresh only suppliers from server (used after create/update/delete)
     async function fetchSuppliers(search = '') {
         try {
             const res = await fetch('/api/suppliers');
-            const allSuppliers = await res.json();
-            if (search) {
-                const lowerSearch = search.toLowerCase();
-                suppliers = allSuppliers.filter(s => s.name.toLowerCase().includes(lowerSearch));
-            } else {
-                suppliers = allSuppliers;
-            }
+            allSuppliers = await res.json();
+            suppliers = search
+                ? allSuppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+                : allSuppliers;
             renderSuppliersGrid();
         } catch (error) {
             console.error('Error fetching suppliers:', error);
         }
+    }
+
+    // Pure client-side search — no network call
+    function filterClients(search = '') {
+        clients = search
+            ? allClients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+            : allClients;
+        renderClientsGrid();
+    }
+
+    function filterSuppliers(search = '') {
+        suppliers = search
+            ? allSuppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+            : allSuppliers;
+        renderSuppliersGrid();
     }
 
     function renderClientsGrid() {
@@ -293,9 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardView.classList.remove('hidden');
         clientDetailView.classList.add('hidden');
         if (currentView === 'clients') {
-            fetchClients(clientSearchInput.value);
+            filterClients(clientSearchInput.value);
         } else {
-            fetchSuppliers(supplierSearchInput.value);
+            filterSuppliers(supplierSearchInput.value);
         }
     }
 
@@ -310,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addSupplierBtn.classList.add('hidden');
             clientSearchInput.classList.remove('hidden');
             supplierSearchInput.classList.add('hidden');
-            fetchClients(clientSearchInput.value);
+            filterClients(clientSearchInput.value); // instant in-memory
         } else {
             viewClientsBtn.classList.remove('active');
             viewSuppliersBtn.classList.add('active');
@@ -320,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addSupplierBtn.classList.remove('hidden');
             clientSearchInput.classList.add('hidden');
             supplierSearchInput.classList.remove('hidden');
-            fetchSuppliers(supplierSearchInput.value);
+            filterSuppliers(supplierSearchInput.value); // instant in-memory
         }
     }
 
@@ -651,12 +686,11 @@ document.addEventListener('DOMContentLoaded', () => {
         contactModal.classList.remove('active');
     }
 
-    // SUPPLIER Modal
-    window.openSupplierModal = async (mode = 'create', id = null) => {
+    // SUPPLIER Modal — uses cached allSuppliers array to avoid extra API round trip
+    window.openSupplierModal = (mode = 'create', id = null) => {
         if (mode === 'edit' && id) {
-            try {
-                const res = await fetch(`/api/suppliers/${id}`);
-                const supplier = await res.json();
+            const supplier = allSuppliers.find(s => s.id === id);
+            if (supplier) {
                 document.getElementById('supplierId').value = supplier.id;
                 document.getElementById('supplierName').value = supplier.name;
                 document.getElementById('supplierPortalUrl').value = supplier.portalUrl || '';
@@ -664,7 +698,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('supplierPortalPass').value = supplier.portalPass || '';
                 document.getElementById('supplierObservations').value = supplier.observations || '';
                 supplierModalTitle.textContent = 'Editar Proveedor';
-            } catch (err) { console.error(err); }
+            } else {
+                // Fallback to server if somehow not in cache
+                fetch(`/api/suppliers/${id}`).then(r => r.json()).then(supplier => {
+                    document.getElementById('supplierId').value = supplier.id;
+                    document.getElementById('supplierName').value = supplier.name;
+                    document.getElementById('supplierPortalUrl').value = supplier.portalUrl || '';
+                    document.getElementById('supplierPortalUser').value = supplier.portalUser || '';
+                    document.getElementById('supplierPortalPass').value = supplier.portalPass || '';
+                    document.getElementById('supplierObservations').value = supplier.observations || '';
+                    supplierModalTitle.textContent = 'Editar Proveedor';
+                    supplierModal.classList.add('active');
+                }).catch(err => console.error(err));
+                return;
+            }
         } else {
             supplierForm.reset();
             document.getElementById('supplierId').value = '';
@@ -721,18 +768,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editClientForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('editClientId').value;
+        const id = parseInt(document.getElementById('editClientId').value);
         const name = document.getElementById('editClientName').value;
 
-        try {
-            // first fetch current client data to preserve other fields
-            const currentRes = await fetch(`/api/clients/${id}`);
-            const currentData = await currentRes.json();
+        // Use cached client data to avoid an extra GET before the PUT
+        const cached = allClients.find(c => c.id === id) || {};
 
+        try {
             const res = await fetch(`/api/clients/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...currentData, name }) // Maintain other fields, update name
+                body: JSON.stringify({
+                    name,
+                    hasPortal: cached.hasPortal,
+                    portalUrl: cached.portalUrl,
+                    portalUser: cached.portalUser,
+                    portalPass: cached.portalPass
+                })
             });
 
             if (res.ok) {
@@ -814,7 +866,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clientHasPortalCheckbox.addEventListener('change', togglePortalFields);
 
-    clientSearchInput.addEventListener('input', (e) => fetchClients(e.target.value));
+    // Search uses in-memory filtering — no network call
+    clientSearchInput.addEventListener('input', (e) => filterClients(e.target.value));
 
     // --- Init ---
     viewClientsBtn.addEventListener('click', () => switchView('clients'));
@@ -856,7 +909,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    supplierSearchInput.addEventListener('input', (e) => fetchSuppliers(e.target.value));
+    // Search uses in-memory filtering — no network call
+    supplierSearchInput.addEventListener('input', (e) => filterSuppliers(e.target.value));
 
-    fetchClients();
+    // Single parallel load of all data on startup
+    initData();
 });

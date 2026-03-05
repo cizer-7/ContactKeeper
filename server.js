@@ -290,6 +290,27 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// === INIT (parallel fetch for fast initial load) ===
+app.get('/api/init', async (req, res) => {
+  try {
+    const [clients, suppliers] = await withRetry(() =>
+      Promise.all([
+        prisma.client.findMany({
+          orderBy: { name: 'asc' },
+          include: { _count: { select: { contacts: true } } }
+        }),
+        prisma.supplier.findMany({
+          orderBy: { name: 'asc' }
+        })
+      ])
+    );
+    res.json({ clients, suppliers });
+  } catch (error) {
+    console.error('Init fetch error:', error);
+    res.status(500).json({ error: 'Failed to load initial data' });
+  }
+});
+
 // Start Server with DB warmup
 async function startServer() {
   console.log('Warming up database connection...');
@@ -305,6 +326,18 @@ async function startServer() {
       else console.log('DB warmup failed, will retry on first request.');
     }
   }
+
+  // Keep-alive ping: prevents Azure SQL Serverless from auto-pausing
+  // Fires every 4 minutes so the DB never goes idle between user visits
+  setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('[keep-alive] DB ping OK');
+    } catch (e) {
+      console.log('[keep-alive] DB ping failed:', e.message);
+    }
+  }, 4 * 60 * 1000); // 4 minutes
+
   app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
   });

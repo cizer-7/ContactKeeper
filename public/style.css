@@ -91,6 +91,10 @@ body {
     }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Layout */
 .container {
     max-width: 1200px;
